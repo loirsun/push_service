@@ -21,8 +21,8 @@ import (
 
 	"github.com/go-redis/redis"
 	"github.com/pelletier/go-toml"
-	"soulsense.cn/push_service/lg"
-	"soulsense.cn/push_service/util"
+	"github.com/loirsun/push_service/lg"
+	"github.com/loirsun/push_service/util"
 )
 
 var (

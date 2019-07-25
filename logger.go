@@ -1,7 +1,7 @@
 package main
 
 import (
-	"soulsense.cn/push_service/lg"
+	"github.com/loirsun/push_service/lg"
 )
 
 type Logger lg.Logger
