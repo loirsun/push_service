@@ -1,0 +1,22 @@
+[database]
+redis_addr="127.0.0.1:6380"
+redis_db=0
+redis_password=""
+
+[[channels]]
+name="chan_a"
+concurrency=100
+api_endpoint="http://127.0.0.1/api/chan_a"
+
+[[channels]]
+name="chan_b"
+concurrency=2
+api_endpoint="http://127.0.0.1/api/chan_b"
+    
+[http_client]
+max_idle_conns = 200
+max_idle_conns_per_host = 20
+
+[logger]
+log_level="debug"
+log_prefix="[push_dev] "
