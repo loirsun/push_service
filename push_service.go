@@ -1,17 +1,11 @@
 package main
 
-// 推送系统的设计：
-// php后端把需要推送的消息和userid，一起封装成一个message(json)，推入redis channel
-// 服务端有一个php进程从redis channel拿到message，然后调用推送sdk发出
-// 但是，发现php常驻进程随着处理message增多，内存垃圾回收慢，内存超出设定值，程序hang住。
-// 改进方案：
 // 用Golang重写redis subscriber程序，将channel中拿到的message用http request发送给php推送api
 // 替换了php常驻进程（开发人员对php GC不了解，所以换Golang实现）
 // go程序设置了最大并发goroutine数量，保证php server api不会被推崩溃
 //
 
 import (
-	"crypto/sha1"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -40,10 +34,14 @@ type Response struct {
 	Message string `json:"message"`
 }
 
+//
 type Consumer struct {
 	ps          *PushService
+    // redis channel name which this consumer is binding to
 	channel     string
+    // A buffered channel plays the semaphore role
 	sem         chan bool
+    // Consumer just fetch message from redis channel and send a http post request to this api endpoint
 	apiEndpoint string
 }
 
@@ -138,11 +136,6 @@ func (p *PushService) AddConsumer(consumer *Consumer) {
 
 func (c *Consumer) SubscribeAndConsume() {
 	pubsub := c.ps.redisClient.Subscribe(c.channel)
-	// _, err := pubsub.Receive()
-	// if err != nil {
-	// 	c.ps.logf(LOG_FATAL, "[%s] call pubsub.Receive failed - %s", c.channel, err)
-	// 	os.Exit(1)
-	// }
 	c.ps.logf(LOG_INFO, "[%s] Subscribe channel success", c.channel)
 	// Go channel which receives messages.
 	ch := pubsub.Channel()
@@ -166,14 +159,9 @@ func (p *PushService) Run(opts *Options) {
 func (c *Consumer) CallApi(data string) {
 	c.ps.logf(LOG_DEBUG, data)
 
-	ts := time.Now().Unix()
-	toSign := fmt.Sprintf("%s%dNothabawasTOxu2r", data, ts)
-	h := sha1.New()
-	h.Write([]byte(toSign))
-	bs := h.Sum(nil)
 	defer func() { <-c.sem }()
 
-	resp, err := c.ps.httpClient.PostForm(c.apiEndpoint, url.Values{"message": {data}, "time": {strconv.FormatInt(ts, 10)}, "sign": {fmt.Sprintf("%x", bs)}})
+	resp, err := c.ps.httpClient.PostForm(c.apiEndpoint, url.Values{"message": {data}})
 	if err != nil {
 		c.ps.logf(LOG_ERROR, "[%s] http post failed - %s", c.channel, err)
 		return
